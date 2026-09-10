@@ -18,7 +18,7 @@ globalThis.matchMedia=globalThis.window.matchMedia;
 try{Object.defineProperty(globalThis,'navigator',{value:{clipboard:{writeText:()=>Promise.resolve()}},configurable:true});}catch{}
 
 const js=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).sort((a,b)=>b.length-a.length)[0];
-eval(js+`\n;globalThis.__t={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare};`);
+eval(js+`\n;globalThis.__t={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare,extraSensitivity};`);
 const t=globalThis.__t;
 
 let n=0; const check=(name,fn)=>{fn();n++;console.log('  ok -',name);};
@@ -88,6 +88,14 @@ check('share codec: round-trips debts+extra+strategy, rejects garbage',()=>{
   assert.equal(back.debts[0].name,'Card');
   assert.equal(back.debts[1].balance,9000);
   assert.equal(t.decodeShare('###bad'),null);
+});
+
+check('extraSensitivity: more extra never increases months or interest',()=>{
+  const d=[{name:'A',balance:6000,apr:22,min:150},{name:'B',balance:9000,apr:6,min:250}];
+  const rows=t.extraSensitivity(d,[0,200,500],'avalanche');
+  assert.equal(rows.length,3);
+  assert.ok(rows[0].months>=rows[1].months && rows[1].months>=rows[2].months);
+  assert.ok(rows[0].totalInterest>=rows[1].totalInterest && rows[1].totalInterest>=rows[2].totalInterest);
 });
 
 console.log(`\n${n} checks passed.`);

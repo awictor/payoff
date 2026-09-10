@@ -56,6 +56,11 @@
   .cmp{margin-top:14px;font-size:13px;color:var(--muted)}
   .order{margin-top:12px;font-size:13px} .order li{margin:2px 0}
   #chart{width:100%;height:auto;display:block}
+  table.imp{width:100%;border-collapse:collapse;font-size:13px}
+  table.imp th,table.imp td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line)}
+  table.imp th:first-child,table.imp td:first-child{text-align:left;color:var(--muted)}
+  table.imp thead th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  table.imp tr.cur td{font-weight:700;color:var(--accent)}
   footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
   footer a{color:var(--accent-d);text-decoration:none}
 </style>
@@ -105,6 +110,12 @@
   </section>
 
   <section class="card">
+    <h2>Extra-payment impact</h2>
+    <div id="impHost"></div>
+    <div class="cmp">Every extra $100/month compounds — earlier payoff means less interest on everything behind it.</div>
+  </section>
+
+  <section class="card">
     <h2>Hit a target date</h2>
     <div class="controls">
       <span>To be debt-free in</span>
@@ -119,7 +130,7 @@
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.6.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.7.0
 </footer>
 
 <script>
@@ -172,6 +183,11 @@ function decodeShare(str){
     if(!Array.isArray(o.d)) return null;
     return { debts:o.d.map(a=>({name:a[0],balance:a[1],apr:a[2],min:a[3]})), extra:+o.e||0, strategy:o.s==="snowball"?"snowball":"avalanche" };
   }catch{ return null; }
+}
+
+// Debt-free months + total interest at a set of extra-payment levels.
+function extraSensitivity(debts, extras, strategy){
+  return extras.map(e=>{ const r=simulatePayoff(debts,e,strategy); return {extra:e, months:r.months, totalInterest:r.totalInterest, cleared:r.cleared}; });
 }
 
 function drawChart(series){
@@ -240,6 +256,13 @@ function calc(){
   const tm=parseInt($("targetMonths").value)||0;
   try{localStorage.setItem("payoff.target",tm);}catch(e){}
   drawChart(r.cleared?r.series:null);
+
+  const exs=[0,100,200,300,500]; if(exs.indexOf(extra)<0){ exs.push(extra); exs.sort((a,b)=>a-b); }
+  let ih='<table class="imp"><thead><tr><th>Extra / mo</th><th>Debt-free in</th><th>Total interest</th></tr></thead><tbody>';
+  extraSensitivity(debts,exs,strat).forEach(x=>{ const isc=Math.abs(x.extra-extra)<0.5;
+    ih+=`<tr class="${isc?'cur':''}"><td>${money(x.extra)}</td><td>${monthsLabel(x.months)}</td><td>${x.cleared?money(x.totalInterest):"—"}</td></tr>`; });
+  ih+='</tbody></table>'; $("impHost").innerHTML=ih;
+
   const need=solveExtraForMonths(debts,tm,strat);
   if(need==null){ $("solveExtra").textContent="—"; $("solveNote").textContent=debts.length?`Can't clear these debts in ${tm} months — pick a longer horizon.`:""; }
   else { $("solveExtra").textContent=money(need);
@@ -275,7 +298,7 @@ try{const e=localStorage.getItem("payoff.extra");if(e!=null)$("extra").value=e;c
 })();
 renderRows(); calc();
 
-if(typeof module!=="undefined") module.exports={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare};
+if(typeof module!=="undefined") module.exports={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare,extraSensitivity};
 </script>
 </body>
 </html>
