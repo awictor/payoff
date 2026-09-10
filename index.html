@@ -117,7 +117,7 @@
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.4.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.5.0
 </footer>
 
 <script>
@@ -130,7 +130,7 @@ const monthsLabel=m=>!isFinite(m)?"never":(m<24?m+" mo":(Math.floor(m/12)+"y "+(
 function simulatePayoff(debts, extra, strategy){
   const ds=debts.map((d,i)=>({name:d.name||("Debt "+(i+1)), bal:+d.balance||0, apr:+d.apr||0, min:+d.min||0}));
   const budget=extra + ds.reduce((s,d)=>s+d.min,0);
-  let month=0, totalInterest=0; const order=[]; const CAP=1200;
+  let month=0, totalInterest=0; const order=[], schedule=[]; const CAP=1200;
   const series=[ds.reduce((s,d)=>s+d.bal,0)];
   while(ds.some(d=>d.bal>0.005) && month<CAP){
     month++;
@@ -140,13 +140,13 @@ function simulatePayoff(debts, extra, strategy){
     active.forEach(d=>{ const pay=Math.min(d.min, d.bal, pool); d.bal-=pay; pool-=pay; });
     const pri=active.slice().sort((a,b)=> strategy==="snowball" ? a.bal-b.bal : b.apr-a.apr);
     for(const d of pri){ if(pool<=0.005) break; const pay=Math.min(pool,d.bal); d.bal-=pay; pool-=pay; }
-    ds.forEach(d=>{ if(d.bal<=0.005 && d._done!==true){ d._done=true; order.push(d.name); } });
+    ds.forEach(d=>{ if(d.bal<=0.005 && d._done!==true){ d._done=true; order.push(d.name); schedule.push({name:d.name,month}); } });
     series.push(ds.reduce((s,d)=>s+Math.max(0,d.bal),0));
     if(pool>=budget-0.005 && active.length) break; // no progress (budget < interest) -> avoid infinite loop
   }
   const cleared = !ds.some(d=>d.bal>0.005);
   const principal = debts.reduce((s,d)=>s+(+d.balance||0),0);
-  return { months: cleared?month:Infinity, totalInterest, totalPaid: principal+totalInterest, order, cleared, series };
+  return { months: cleared?month:Infinity, totalInterest, totalPaid: principal+totalInterest, order, schedule, cleared, series };
 }
 
 // Minimum extra/month to be debt-free within targetMonths (binary search). Pure. null if infeasible.
@@ -220,7 +220,8 @@ function calc(){
       $("savings").innerHTML=`vs minimums only: your ${money(extra)}/mo extra saves <b>${money(si)}</b> interest and <b>${sm} months</b>.`;
     } else $("savings").innerHTML=`vs minimums only: minimums alone never clear these debts — the extra is what makes them payable.`;
   } else $("savings").innerHTML="";
-  $("order").innerHTML=r.order.map((n,i)=>`<li>${i+1}. ${n.replace(/</g,"&lt;")}</li>`).join("");
+  $("order").innerHTML='<div style="font-weight:600;margin:6px 0 4px">Payoff schedule</div>'+
+    r.schedule.map((s,i)=>`<li>${i+1}. ${s.name.replace(/</g,"&lt;")} — cleared month ${s.month} (${monthsLabel(s.month)})</li>`).join("");
 
   const tm=parseInt($("targetMonths").value)||0;
   try{localStorage.setItem("payoff.target",tm);}catch(e){}

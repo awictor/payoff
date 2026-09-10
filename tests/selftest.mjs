@@ -28,6 +28,7 @@ check('single 0% debt: months = balance/payment, no interest',()=>{
   assert.ok(Math.abs(r.totalInterest)<0.01);
   assert.equal(r.cleared,true);
   assert.deepEqual(r.order,['A']);
+  assert.deepEqual(r.schedule,[{name:'A',month:5}]);
   assert.equal(r.series.length,6);          // start + 5 months
   assert.equal(r.series[0],1000);
   assert.ok(r.series[5]<0.01);              // ends at zero
