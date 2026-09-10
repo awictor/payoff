@@ -16,7 +16,7 @@ globalThis.window={matchMedia:()=>({matches:false})};
 globalThis.matchMedia=globalThis.window.matchMedia;
 
 const js=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).sort((a,b)=>b.length-a.length)[0];
-eval(js+`\n;globalThis.__t={simulatePayoff};`);
+eval(js+`\n;globalThis.__t={simulatePayoff,solveExtraForMonths};`);
 const t=globalThis.__t;
 
 let n=0; const check=(name,fn)=>{fn();n++;console.log('  ok -',name);};
@@ -54,6 +54,16 @@ check('under-water budget never clears',()=>{
   const r=t.simulatePayoff([{name:'A',balance:10000,apr:30,min:10}],0,'avalanche'); // interest >> payment
   assert.equal(r.cleared,false);
   assert.equal(r.months,Infinity);
+});
+
+check('solveExtraForMonths: min extra to hit a target',()=>{
+  const d=[{name:'A',balance:1200,apr:0,min:100}];
+  // budget = 100+extra; to clear in 4 months need 1200/budget<=4 -> budget>=300 -> extra>=200
+  assert.equal(t.solveExtraForMonths(d,4,'avalanche'),200);
+  // generous horizon that minimums already meet -> 0
+  assert.equal(t.solveExtraForMonths(d,12,'avalanche'),0);
+  // impossible horizon -> null
+  assert.equal(t.solveExtraForMonths(d,0,'avalanche'),null);
 });
 
 console.log(`\n${n} checks passed.`);

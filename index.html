@@ -94,11 +94,23 @@
     <div id="cmp" class="cmp"></div>
     <ol id="order" class="order"></ol>
   </section>
+
+  <section class="card">
+    <h2>Hit a target date</h2>
+    <div class="controls">
+      <span>To be debt-free in</span>
+      <div class="ig" style="width:100px"><span class="pre">#</span><input id="targetMonths" type="number" step="1" value="24"></div>
+      <span>months, pay extra</span>
+      <b id="solveExtra" style="color:var(--accent);font-size:16px">—</b>
+      <span>/ month.</span>
+    </div>
+    <div id="solveNote" class="cmp"></div>
+  </section>
 </div>
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.1.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.2.0
 </footer>
 
 <script>
@@ -126,6 +138,17 @@ function simulatePayoff(debts, extra, strategy){
   const cleared = !ds.some(d=>d.bal>0.005);
   const principal = debts.reduce((s,d)=>s+(+d.balance||0),0);
   return { months: cleared?month:Infinity, totalInterest, totalPaid: principal+totalInterest, order, cleared };
+}
+
+// Minimum extra/month to be debt-free within targetMonths (binary search). Pure. null if infeasible.
+function solveExtraForMonths(debts, targetMonths, strategy){
+  if(!debts.length || targetMonths<1) return null;
+  if(simulatePayoff(debts,0,strategy).months<=targetMonths) return 0;
+  let hi=debts.reduce((s,d)=>s+(+d.balance||0),0)+1;
+  if(simulatePayoff(debts,hi,strategy).months>targetMonths) return null;
+  let lo=0;
+  for(let i=0;i<44;i++){ const mid=(lo+hi)/2; if(simulatePayoff(debts,mid,strategy).months<=targetMonths) hi=mid; else lo=mid; }
+  return Math.ceil(hi);
 }
 
 let debts=[];
@@ -166,11 +189,19 @@ function calc(){
   }
   $("cmp").innerHTML=c;
   $("order").innerHTML=r.order.map((n,i)=>`<li>${i+1}. ${n.replace(/</g,"&lt;")}</li>`).join("");
+
+  const tm=parseInt($("targetMonths").value)||0;
+  try{localStorage.setItem("payoff.target",tm);}catch(e){}
+  const need=solveExtraForMonths(debts,tm,strat);
+  if(need==null){ $("solveExtra").textContent="—"; $("solveNote").textContent=debts.length?`Can't clear these debts in ${tm} months — pick a longer horizon.`:""; }
+  else { $("solveExtra").textContent=money(need);
+    $("solveNote").textContent = need<=extra ? `Your current ${money(extra)}/mo already beats this.` : `That's ${money(need-extra)} more than your current ${money(extra)}/mo.`; }
 }
 
 $("addBtn").onclick=()=>{ debts.push({name:"",balance:2000,apr:19.99,min:50}); save(); renderRows(); calc(); };
 $("extra").addEventListener("input",()=>{save();calc();});
 $("strategy").addEventListener("change",()=>{save();calc();});
+$("targetMonths").addEventListener("input",()=>calc());
 $("copyBtn").onclick=()=>{
   const extra=parseFloat($("extra").value)||0, strat=$("strategy").value, r=simulatePayoff(debts,extra,strat);
   const txt=`Payoff plan (${strat})\nDebt-free in ${monthsLabel(r.months)} · interest ${money(r.totalInterest)} · total ${money(r.totalPaid)}\nOrder: ${r.order.join(" → ")}`;
@@ -182,10 +213,10 @@ try{$("yr").textContent=new Date().getFullYear();}catch(e){}
 
 try{ debts=JSON.parse(localStorage.getItem("payoff.debts"))||null; }catch(e){ debts=null; }
 if(!debts||!debts.length) debts=[{name:"Credit card",balance:6000,apr:22.9,min:150},{name:"Car loan",balance:9000,apr:6.5,min:250}];
-try{const e=localStorage.getItem("payoff.extra");if(e!=null)$("extra").value=e;const s=localStorage.getItem("payoff.strategy");if(s)$("strategy").value=s;}catch(e){}
+try{const e=localStorage.getItem("payoff.extra");if(e!=null)$("extra").value=e;const s=localStorage.getItem("payoff.strategy");if(s)$("strategy").value=s;const tm=localStorage.getItem("payoff.target");if(tm!=null)$("targetMonths").value=tm;}catch(e){}
 renderRows(); calc();
 
-if(typeof module!=="undefined") module.exports={simulatePayoff};
+if(typeof module!=="undefined") module.exports={simulatePayoff,solveExtraForMonths};
 </script>
 </body>
 </html>
