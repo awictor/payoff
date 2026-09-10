@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+- Multi-currency — $, £, €, C$, A$ symbol selector across the whole UI.
+
+## 0.7.0
+- Extra-payment impact table — debt-free date and interest at $0–500 extra.
+
 ## 0.6.0
 - Shareable link — debts, extra, and strategy encode to a URL hash and reopen exactly.
 
