@@ -86,6 +86,8 @@
       <div class="ig" style="width:120px"><span class="pre cur">$</span><input id="extra" type="number" step="50" value="200"></div>
       <span>Strategy</span>
       <select id="strategy"><option value="avalanche">Avalanche (highest APR first)</option><option value="snowball">Snowball (smallest balance first)</option></select>
+      <span>Currency</span>
+      <select id="currency"></select>
       <button id="copyBtn" class="btn">📋 Copy plan</button>
       <button id="shareBtn" class="btn">🔗 Share</button>
     </div>
@@ -130,7 +132,7 @@
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.7.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.8.0
 </footer>
 
 <script>
@@ -138,6 +140,7 @@ const $=id=>document.getElementById(id);
 let CUR="$";
 const money=n=>(n<0?"-":"")+CUR+Math.abs(n).toLocaleString(undefined,{maximumFractionDigits:0});
 const monthsLabel=m=>!isFinite(m)?"never":(m<24?m+" mo":(Math.floor(m/12)+"y "+(m%12)+"m"));
+const CURRENCIES=["$","£","€","C$","A$"];
 
 // Simulate paying down debts month by month. Pure. strategy: 'avalanche' (APR desc) or 'snowball' (balance asc).
 function simulatePayoff(debts, extra, strategy){
@@ -278,6 +281,8 @@ $("copyBtn").onclick=()=>{
   const txt=`Payoff plan (${strat})\nDebt-free in ${monthsLabel(r.months)} · interest ${money(r.totalInterest)} · total ${money(r.totalPaid)}\nOrder: ${r.order.join(" → ")}`;
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt);
 };
+(function(){ const sel=$("currency"); CURRENCIES.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o);});
+  sel.addEventListener("change",()=>{ CUR=sel.value; document.querySelectorAll(".cur").forEach(e=>e.textContent=CUR); try{localStorage.setItem("payoff.cur",CUR);}catch(e){} calc(); }); })();
 $("shareBtn").onclick=()=>{
   const url=location.origin+location.pathname+"#s="+encodeShare(debts,parseFloat($("extra").value)||0,$("strategy").value);
   const msg=x=>{$("shareMsg").textContent=x;};
@@ -296,6 +301,7 @@ try{const e=localStorage.getItem("payoff.extra");if(e!=null)$("extra").value=e;c
   debts=st.debts; $("extra").value=st.extra; $("strategy").value=st.strategy;
   try{$("shareMsg").textContent="Opened from a shared link.";}catch(e){}
 })();
+try{const cu=localStorage.getItem("payoff.cur");if(cu&&CURRENCIES.indexOf(cu)>=0){CUR=cu;$("currency").value=cu;document.querySelectorAll(".cur").forEach(e=>e.textContent=CUR);}}catch(e){}
 renderRows(); calc();
 
 if(typeof module!=="undefined") module.exports={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare,extraSensitivity};
