@@ -82,7 +82,9 @@
       <span>Strategy</span>
       <select id="strategy"><option value="avalanche">Avalanche (highest APR first)</option><option value="snowball">Snowball (smallest balance first)</option></select>
       <button id="copyBtn" class="btn">📋 Copy plan</button>
+      <button id="shareBtn" class="btn">🔗 Share</button>
     </div>
+    <div id="shareMsg" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
   </section>
 
   <section class="card">
@@ -117,7 +119,7 @@
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.5.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.6.0
 </footer>
 
 <script>
@@ -158,6 +160,18 @@ function solveExtraForMonths(debts, targetMonths, strategy){
   let lo=0;
   for(let i=0;i<44;i++){ const mid=(lo+hi)/2; if(simulatePayoff(debts,mid,strategy).months<=targetMonths) hi=mid; else lo=mid; }
   return Math.ceil(hi);
+}
+
+// Share codec: {debts, extra, strategy} <-> compact base64url hash.
+function encodeShare(debts,extra,strategy){
+  const raw=JSON.stringify({d:debts.map(x=>[x.name||"",+x.balance||0,+x.apr||0,+x.min||0]),e:+extra||0,s:strategy});
+  return btoa(unescape(encodeURIComponent(raw))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function decodeShare(str){
+  try{ const o=JSON.parse(decodeURIComponent(escape(atob(str.replace(/-/g,"+").replace(/_/g,"/")))));
+    if(!Array.isArray(o.d)) return null;
+    return { debts:o.d.map(a=>({name:a[0],balance:a[1],apr:a[2],min:a[3]})), extra:+o.e||0, strategy:o.s==="snowball"?"snowball":"avalanche" };
+  }catch{ return null; }
 }
 
 function drawChart(series){
@@ -241,6 +255,12 @@ $("copyBtn").onclick=()=>{
   const txt=`Payoff plan (${strat})\nDebt-free in ${monthsLabel(r.months)} · interest ${money(r.totalInterest)} · total ${money(r.totalPaid)}\nOrder: ${r.order.join(" → ")}`;
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt);
 };
+$("shareBtn").onclick=()=>{
+  const url=location.origin+location.pathname+"#s="+encodeShare(debts,parseFloat($("extra").value)||0,$("strategy").value);
+  const msg=x=>{$("shareMsg").textContent=x;};
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(()=>msg("✓ Link copied — reopens this exact plan."),()=>msg(url));
+  else msg(url);
+};
 $("themeBtn").onclick=()=>{const n=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",n);try{localStorage.setItem("payoff.theme",n);}catch(e){}$("themeBtn").textContent=n==="dark"?"☀️":"🌙";};
 $("themeBtn").textContent=document.documentElement.getAttribute("data-theme")==="dark"?"☀️":"🌙";
 try{$("yr").textContent=new Date().getFullYear();}catch(e){}
@@ -248,9 +268,14 @@ try{$("yr").textContent=new Date().getFullYear();}catch(e){}
 try{ debts=JSON.parse(localStorage.getItem("payoff.debts"))||null; }catch(e){ debts=null; }
 if(!debts||!debts.length) debts=[{name:"Credit card",balance:6000,apr:22.9,min:150},{name:"Car loan",balance:9000,apr:6.5,min:250}];
 try{const e=localStorage.getItem("payoff.extra");if(e!=null)$("extra").value=e;const s=localStorage.getItem("payoff.strategy");if(s)$("strategy").value=s;const tm=localStorage.getItem("payoff.target");if(tm!=null)$("targetMonths").value=tm;}catch(e){}
+(function(){ const m=(location.hash||"").match(/[#&]s=([^&]+)/); if(!m) return;
+  const st=decodeShare(m[1]); if(!st||!st.debts.length) return;
+  debts=st.debts; $("extra").value=st.extra; $("strategy").value=st.strategy;
+  try{$("shareMsg").textContent="Opened from a shared link.";}catch(e){}
+})();
 renderRows(); calc();
 
-if(typeof module!=="undefined") module.exports={simulatePayoff,solveExtraForMonths};
+if(typeof module!=="undefined") module.exports={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare};
 </script>
 </body>
 </html>
