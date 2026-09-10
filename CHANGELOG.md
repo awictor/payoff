@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+- Shareable link — debts, extra, and strategy encode to a URL hash and reopen exactly.
+
+## 0.5.0
+- Per-debt payoff schedule — which debt clears in which month.
+
 ## 0.4.0
 - Balance-over-time chart — inline-SVG trajectory of total balance to zero.
 
