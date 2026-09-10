@@ -2,7 +2,7 @@
 
 **Debt snowball vs avalanche planner.** List your debts, add an extra monthly payment, and see exactly when you'll be debt-free, how much interest you'll pay, and which strategy wins. Runs 100% in the browser — no signup, offline.
 
-![version](https://img.shields.io/badge/version-0.7.0-059669) ![status](https://img.shields.io/badge/status-live-059669) [![CI](https://github.com/awictor/payoff/actions/workflows/ci.yml/badge.svg)](https://github.com/awictor/payoff/actions/workflows/ci.yml)
+![version](https://img.shields.io/badge/version-0.8.0-059669) ![status](https://img.shields.io/badge/status-live-059669) [![CI](https://github.com/awictor/payoff/actions/workflows/ci.yml/badge.svg)](https://github.com/awictor/payoff/actions/workflows/ci.yml)
 
 ## Why
 
