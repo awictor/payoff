@@ -66,4 +66,11 @@ check('solveExtraForMonths: min extra to hit a target',()=>{
   assert.equal(t.solveExtraForMonths(d,0,'avalanche'),null);
 });
 
+check('extra payments cut months and interest vs minimums only',()=>{
+  const d=[{name:'A',balance:6000,apr:22,min:150},{name:'B',balance:9000,apr:6,min:250}];
+  const base=t.simulatePayoff(d,0,'avalanche'), plan=t.simulatePayoff(d,300,'avalanche');
+  assert.ok(plan.months<base.months);
+  assert.ok(plan.totalInterest<base.totalInterest);
+});
+
 console.log(`\n${n} checks passed.`);

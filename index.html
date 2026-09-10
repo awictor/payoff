@@ -92,6 +92,7 @@
       <div class="stat"><div id="total" class="v">—</div><div class="k">Total paid</div></div>
     </div>
     <div id="cmp" class="cmp"></div>
+    <div id="savings" class="cmp"></div>
     <ol id="order" class="order"></ol>
   </section>
 
@@ -110,7 +111,7 @@
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.2.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.3.0
 </footer>
 
 <script>
@@ -188,6 +189,13 @@ function calc(){
     else c+=`vs ${other}: ${diff>=0?"saves":"costs"} ${money(Math.abs(diff))} interest and ${dm>=0?"is":"is"} ${Math.abs(dm)} mo ${dm>0?"faster":dm<0?"slower":"same"}.`;
   }
   $("cmp").innerHTML=c;
+  if(extra>0){
+    const base=simulatePayoff(debts,0,strat);
+    if(base.cleared){
+      const si=base.totalInterest-r.totalInterest, sm=base.months-r.months;
+      $("savings").innerHTML=`vs minimums only: your ${money(extra)}/mo extra saves <b>${money(si)}</b> interest and <b>${sm} months</b>.`;
+    } else $("savings").innerHTML=`vs minimums only: minimums alone never clear these debts — the extra is what makes them payable.`;
+  } else $("savings").innerHTML="";
   $("order").innerHTML=r.order.map((n,i)=>`<li>${i+1}. ${n.replace(/</g,"&lt;")}</li>`).join("");
 
   const tm=parseInt($("targetMonths").value)||0;
