@@ -12,11 +12,13 @@ function el(){ return {value:'',textContent:'',innerHTML:'',style:{},dataset:{},
 const ids={};
 globalThis.document={getElementById:id=>ids[id]||(ids[id]=el()),createElement:()=>el(),querySelectorAll:()=>[],documentElement:el()};
 globalThis.localStorage={getItem:()=>null,setItem(){},removeItem(){}};
-globalThis.window={matchMedia:()=>({matches:false})};
+globalThis.location={hash:'',origin:'',pathname:''};
+globalThis.window={matchMedia:()=>({matches:false}),location:globalThis.location};
 globalThis.matchMedia=globalThis.window.matchMedia;
+try{Object.defineProperty(globalThis,'navigator',{value:{clipboard:{writeText:()=>Promise.resolve()}},configurable:true});}catch{}
 
 const js=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).sort((a,b)=>b.length-a.length)[0];
-eval(js+`\n;globalThis.__t={simulatePayoff,solveExtraForMonths};`);
+eval(js+`\n;globalThis.__t={simulatePayoff,solveExtraForMonths,encodeShare,decodeShare};`);
 const t=globalThis.__t;
 
 let n=0; const check=(name,fn)=>{fn();n++;console.log('  ok -',name);};
@@ -75,6 +77,17 @@ check('extra payments cut months and interest vs minimums only',()=>{
   const base=t.simulatePayoff(d,0,'avalanche'), plan=t.simulatePayoff(d,300,'avalanche');
   assert.ok(plan.months<base.months);
   assert.ok(plan.totalInterest<base.totalInterest);
+});
+
+check('share codec: round-trips debts+extra+strategy, rejects garbage',()=>{
+  const d=[{name:'Card',balance:6000,apr:22.9,min:150},{name:'Loan',balance:9000,apr:6.5,min:250}];
+  const back=t.decodeShare(t.encodeShare(d,300,'snowball'));
+  assert.equal(back.extra,300);
+  assert.equal(back.strategy,'snowball');
+  assert.equal(back.debts.length,2);
+  assert.equal(back.debts[0].name,'Card');
+  assert.equal(back.debts[1].balance,9000);
+  assert.equal(t.decodeShare('###bad'),null);
 });
 
 console.log(`\n${n} checks passed.`);
