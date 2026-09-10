@@ -28,6 +28,9 @@ check('single 0% debt: months = balance/payment, no interest',()=>{
   assert.ok(Math.abs(r.totalInterest)<0.01);
   assert.equal(r.cleared,true);
   assert.deepEqual(r.order,['A']);
+  assert.equal(r.series.length,6);          // start + 5 months
+  assert.equal(r.series[0],1000);
+  assert.ok(r.series[5]<0.01);              // ends at zero
 });
 check('interest accrues: pay-in-full next month',()=>{
   const r=t.simulatePayoff([{name:'A',balance:1000,apr:12,min:100000}],0,'avalanche');

@@ -55,6 +55,7 @@
   .stat .v{font-size:22px;font-weight:700} .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
   .cmp{margin-top:14px;font-size:13px;color:var(--muted)}
   .order{margin-top:12px;font-size:13px} .order li{margin:2px 0}
+  #chart{width:100%;height:auto;display:block}
   footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
   footer a{color:var(--accent-d);text-decoration:none}
 </style>
@@ -97,6 +98,11 @@
   </section>
 
   <section class="card">
+    <h2>Balance over time</h2>
+    <svg id="chart" viewBox="0 0 640 200" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Total balance declining to zero"></svg>
+  </section>
+
+  <section class="card">
     <h2>Hit a target date</h2>
     <div class="controls">
       <span>To be debt-free in</span>
@@ -111,7 +117,7 @@
 
 <footer>
   <b>Payoff</b> · offline debt payoff planner · <a href="https://github.com/awictor/payoff">source</a><br>
-  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.3.0
+  A planning estimate — check your lender's terms. © <span id="yr">2026</span> Alex Wictor · MIT · v0.4.0
 </footer>
 
 <script>
@@ -125,6 +131,7 @@ function simulatePayoff(debts, extra, strategy){
   const ds=debts.map((d,i)=>({name:d.name||("Debt "+(i+1)), bal:+d.balance||0, apr:+d.apr||0, min:+d.min||0}));
   const budget=extra + ds.reduce((s,d)=>s+d.min,0);
   let month=0, totalInterest=0; const order=[]; const CAP=1200;
+  const series=[ds.reduce((s,d)=>s+d.bal,0)];
   while(ds.some(d=>d.bal>0.005) && month<CAP){
     month++;
     ds.forEach(d=>{ if(d.bal>0.005){ const it=d.bal*(d.apr/1200); d.bal+=it; totalInterest+=it; } });
@@ -134,11 +141,12 @@ function simulatePayoff(debts, extra, strategy){
     const pri=active.slice().sort((a,b)=> strategy==="snowball" ? a.bal-b.bal : b.apr-a.apr);
     for(const d of pri){ if(pool<=0.005) break; const pay=Math.min(pool,d.bal); d.bal-=pay; pool-=pay; }
     ds.forEach(d=>{ if(d.bal<=0.005 && d._done!==true){ d._done=true; order.push(d.name); } });
+    series.push(ds.reduce((s,d)=>s+Math.max(0,d.bal),0));
     if(pool>=budget-0.005 && active.length) break; // no progress (budget < interest) -> avoid infinite loop
   }
   const cleared = !ds.some(d=>d.bal>0.005);
   const principal = debts.reduce((s,d)=>s+(+d.balance||0),0);
-  return { months: cleared?month:Infinity, totalInterest, totalPaid: principal+totalInterest, order, cleared };
+  return { months: cleared?month:Infinity, totalInterest, totalPaid: principal+totalInterest, order, cleared, series };
 }
 
 // Minimum extra/month to be debt-free within targetMonths (binary search). Pure. null if infeasible.
@@ -150,6 +158,22 @@ function solveExtraForMonths(debts, targetMonths, strategy){
   let lo=0;
   for(let i=0;i<44;i++){ const mid=(lo+hi)/2; if(simulatePayoff(debts,mid,strategy).months<=targetMonths) hi=mid; else lo=mid; }
   return Math.ceil(hi);
+}
+
+function drawChart(series){
+  const svg=$("chart"); if(!svg) return;
+  if(!series||series.length<2){ svg.innerHTML=""; return; }
+  const W=640,H=200,pL=56,pR=14,pT=14,pB=24,pw=W-pL-pR,ph=H-pT-pB;
+  const max=Math.max(...series)||1;
+  const X=i=>pL+i/(series.length-1)*pw, Y=v=>pT+(max-v)/max*ph;
+  const pts=series.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ");
+  let g=`<rect x="${pL}" y="${pT}" width="${pw}" height="${ph}" fill="none" stroke="var(--line)"/>`;
+  g+=`<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  g+=`<text x="${pL-6}" y="${pT+8}" text-anchor="end" font-size="10" fill="var(--muted)">${money(max)}</text>`;
+  g+=`<text x="${pL-6}" y="${H-pB}" text-anchor="end" font-size="10" fill="var(--muted)">${CUR}0</text>`;
+  g+=`<text x="${pL}" y="${H-8}" font-size="10" fill="var(--muted)">now</text>`;
+  g+=`<text x="${W-pR}" y="${H-8}" text-anchor="end" font-size="10" fill="var(--ink)">mo ${series.length-1}</text>`;
+  svg.innerHTML=g;
 }
 
 let debts=[];
@@ -179,8 +203,8 @@ function calc(){
   $("months").textContent=monthsLabel(r.months);
   $("interest").textContent=r.cleared?money(r.totalInterest):"—";
   $("total").textContent=r.cleared?money(r.totalPaid):"—";
-  if(!debts.length){ $("cmp").textContent="Add a debt to see your payoff plan."; $("order").innerHTML=""; return; }
-  if(!r.cleared){ $("cmp").textContent="Extra + minimums don't cover the interest — increase payments to make progress."; $("order").innerHTML=""; return; }
+  if(!debts.length){ $("cmp").textContent="Add a debt to see your payoff plan."; $("order").innerHTML=""; drawChart(null); return; }
+  if(!r.cleared){ $("cmp").textContent="Extra + minimums don't cover the interest — increase payments to make progress."; $("order").innerHTML=""; drawChart(null); return; }
   const saved=ro.cleared?r.totalInterest-ro.totalInterest:0;
   let c=`Chosen: <b>${strat}</b>. `;
   if(ro.cleared){
@@ -200,6 +224,7 @@ function calc(){
 
   const tm=parseInt($("targetMonths").value)||0;
   try{localStorage.setItem("payoff.target",tm);}catch(e){}
+  drawChart(r.cleared?r.series:null);
   const need=solveExtraForMonths(debts,tm,strat);
   if(need==null){ $("solveExtra").textContent="—"; $("solveNote").textContent=debts.length?`Can't clear these debts in ${tm} months — pick a longer horizon.`:""; }
   else { $("solveExtra").textContent=money(need);
